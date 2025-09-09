@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+</head>
+
+<body>
+  <div id="map"></div>
+  
+
+  <!-- Leaflet + chroma.js -->
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chroma-js/2.1.0/chroma.min.js"></script>
+  
+<!-- Chroma.js (must come before your custom script) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chroma-js/2.1.0/chroma.min.js"></script>
+</head>
+<body>
+  <div id="map"></div>
+  <script>
+    // Initialize map
+    const map = L.map('map').setView([23.2, -106.4], 9);
+
+    // Add basemap
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Load GeoJSON
+    fetch("mazatlan.geojson")
+      .then(r => r.json())
+      .then(data => {
+        // Get unique classes
+        const classes = [...new Set(data.features.map(f => f.properties.CVE_UNION))];
+        
+        // Assign colors automatically
+        const colorScale = chroma.scale('Set3').colors(classes.length);
+        const classColors = {};
+        classes.forEach((c, i) => { classColors[c] = colorScale[i]; });
+
+        // Style function
+        function style(feature) {
+          return {
+            fillColor: classColors[feature.properties.CVE_UNION],
+            color: "#555",
+            weight: 1,
+            fillOpacity: 0.7
+          };
+        }
+
+        // Popups
+// Dictionary: field name → human-readable label
+const fieldLabels = {
+  "CVE_UNION": "Clasificación",
+  "SUM_Hectareas": "Hectáreas totales",
+  "ExportTable.AOI": "% del municipio"
+};
+
+function onEachFeature(feature, layer) {
+  let popupContent = "<b>Información del polígono</b><br>";
+
+  // Choose which fields to show
+  const fieldsToShow = ["CVE_UNION", "SUM_Hectareas", "ExportTable.AOI"];
+
+  fieldsToShow.forEach(field => {
+    let value = feature.properties[field];
+
+    // Format numbers if needed
+    if (typeof value === "number") {
+      if (field.includes("Hectares")) value = value.toLocaleString() + " ha";
+      if (field.includes("%")) value = value.toFixed(2) + "%";
+    }
+
+    // Add line to popup
+    popupContent += `<b>${fieldLabels[field]}:</b> ${value}<br>`;
+  });
+
+  layer.bindPopup(popupContent);
+}
+
+
+        // Add legend
+        const legend = L.control({position: "bottomright"});
+        legend.onAdd = function () {
+          const div = L.DomUtil.create("div", "legend");
+          div.innerHTML = "<b>Clasificación</b><br>";
+          classes.forEach(c => {
+            div.innerHTML +=
+              `<i style="background:${classColors[c]};width:12px;height:12px;display:inline-block;margin-right:6px;"></i> ${c}<br>`;
+          });
+          return div;
+        };
+        legend.addTo(map);
+      });
+  </script>
+</body>
+</html>
